@@ -12,7 +12,6 @@ import (
 )
 
 func main() {
-	fmt.Println("Hello world")
 	client, err := mongo.NewClient(options.Client().ApplyURI("mongodb://localhost:27017"))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -20,23 +19,31 @@ func main() {
 	err = client.Connect(ctx)
 
 	err = client.Ping(ctx, readpref.Primary())
-	fmt.Println(err)
 
-	collection := client.Database("test").Collection("inventory")
+	collection := client.Database("gltest").Collection("test")
 	cur, err := collection.Find(ctx, bson.D{})
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer cur.Close(ctx)
-	for cur.Next(ctx) {
-		var result bson.M
-		err := cur.Decode(&result)
-		if err != nil {
-			log.Fatal(err)
-		}
-		// do something with result....
-		fmt.Println(result)
+
+	// insert
+	res, err := collection.InsertOne(ctx, bson.M{"name": "pi", "value": 3.14159})
+	id := res.InsertedID
+	fmt.Println(id)
+
+	// select
+	var result struct {
+		Name  string
+		Value float64
 	}
+	filter := bson.M{"name": "pi"}
+	err = collection.FindOne(ctx, filter).Decode(&result)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(result.Name, result.Value)
+
 	if err := cur.Err(); err != nil {
 		log.Fatal(err)
 	}
